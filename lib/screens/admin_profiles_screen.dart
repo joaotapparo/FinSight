@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/user_profile_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminProfilesScreen extends StatefulWidget {
   const AdminProfilesScreen({super.key});
@@ -9,9 +9,10 @@ class AdminProfilesScreen extends StatefulWidget {
 }
 
 class _AdminProfilesScreenState extends State<AdminProfilesScreen> {
-  bool _loading = true;
-  List<Map<String, dynamic>> _profiles = [];
+  final _supabase = Supabase.instance.client;
+  bool _isLoading = true;
   String? _error;
+  List<Map<String, dynamic>> _profiles = [];
 
   @override
   void initState() {
@@ -21,98 +22,218 @@ class _AdminProfilesScreenState extends State<AdminProfilesScreen> {
 
   Future<void> _loadProfiles() async {
     setState(() {
-      _loading = true;
+      _isLoading = true;
       _error = null;
     });
 
     try {
-      final list = await UserProfileService.getAllProfiles();
-      if (!mounted) return;
+      final data = await _supabase.from('profiles').select().order('created_at');
       setState(() {
-        _profiles = list;
-        _loading = false;
+        _profiles = List<Map<String, dynamic>>.from(data);
       });
     } catch (e) {
-      if (!mounted) return;
       setState(() {
         _error = e.toString();
-        _loading = false;
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
       });
     }
   }
 
-  Future<void> _toggleRole(Map<String, dynamic> profile) async {
-    final currentRole = profile['role'] ?? 'user';
-    final newRole = currentRole == 'admin' ? 'user' : 'admin';
-
-    await UserProfileService.updateUserRole(
-      userId: profile['id'],
-      role: newRole,
+  Future<void> _openEditDialog(Map<String, dynamic> profile) async {
+    final TextEditingController investorCtrl = TextEditingController(
+      text: profile['investor_profile']?.toString() ?? '',
+    );
+    final TextEditingController interessesCtrl = TextEditingController(
+      text: _extractInteresses(profile),
     );
 
-    await _loadProfiles();
+    String role = profile['role']?.toString() ?? 'user';
+
+    await showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF141414),
+          title: const Text(
+            'Editar perfil',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: role,
+                  dropdownColor: const Color(0xFF141414),
+                  decoration: const InputDecoration(
+                    labelText: 'Papel (role)',
+                    labelStyle: TextStyle(color: Colors.white70),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'user',
+                      child: Text('user'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'admin',
+                      child: Text('admin'),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) role = v;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: investorCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Tipo investidor',
+                    labelStyle: TextStyle(color: Colors.white70),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: interessesCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Interesses (separados por vírgula)',
+                    labelStyle: TextStyle(color: Colors.white70),
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await _saveProfile(
+                  profile['id'] as String,
+                  role,
+                  investorCtrl.text.trim(),
+                  interessesCtrl.text.trim(),
+                  original: profile,
+                );
+                if (context.mounted) Navigator.pop(context);
+              },
+              child: const Text('Salvar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // monta um string de interesses a partir do json
+  String _extractInteresses(Map<String, dynamic> profile) {
+    final json = profile['investor_profile_json'];
+    if (json is Map && json['interesses'] is List) {
+      return (json['interesses'] as List).join(', ');
+    }
+    return '';
+  }
+
+  Future<void> _saveProfile(
+    String id,
+    String role,
+    String investorProfile,
+    String interesses, {
+    required Map<String, dynamic> original,
+  }) async {
+    try {
+      // monta json atualizado
+      Map<String, dynamic> investorJson = {};
+      if (original['investor_profile_json'] is Map) {
+        investorJson =
+            Map<String, dynamic>.from(original['investor_profile_json']);
+      }
+      investorJson['tipoInvestidor'] = investorProfile;
+      investorJson['interesses'] = interesses
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+
+      await _supabase.from('profiles').update({
+        'role': role,
+        'investor_profile': investorProfile,
+        'investor_profile_json': investorJson,
+      }).eq('id', id);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Perfil atualizado ✅'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      await _loadProfiles();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao salvar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0D0D0D),
       appBar: AppBar(
-        title: const Text('Admin - Perfis'),
-        actions: [
-          IconButton(
-            onPressed: _loadProfiles,
-            icon: const Icon(Icons.refresh),
-          )
-        ],
+        backgroundColor: const Color(0xFF0D0D0D),
+        title: const Text('Perfis (admin)'),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF00FFA3)))
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF00FFA3)),
+            )
           : _error != null
               ? Center(
                   child: Text(
-                    'Erro: $_error',
+                    _error!,
                     style: const TextStyle(color: Colors.red),
                   ),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _profiles.length,
-                  itemBuilder: (context, index) {
-                    final p = _profiles[index];
-                    final json = p['investor_profile_json'];
-                    final interesses = (json is Map && json['interesses'] != null)
-                        ? json['interesses'].toString()
-                        : '-';
-
-                    return Card(
-                      color: const Color(0xFF151515),
-                      child: ListTile(
-                        title: Text(
-                          p['id'] ?? '',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        subtitle: Text(
-                          'role: ${p['role'] ?? 'user'}\ninteresses: $interesses',
-                          style: const TextStyle(color: Colors.grey, fontSize: 12),
-                        ),
-                        trailing: ElevatedButton(
-                          onPressed: () => _toggleRole(p),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: (p['role'] ?? 'user') == 'admin'
-                                ? Colors.red
-                                : const Color(0xFF00FFA3),
-                            foregroundColor:
-                                (p['role'] ?? 'user') == 'admin' ? Colors.white : Colors.black,
-                          ),
-                          child: Text(
-                            (p['role'] ?? 'user') == 'admin'
-                                ? 'Tornar user'
-                                : 'Tornar admin',
-                          ),
-                        ),
+              : ListView.separated(
+                  padding: const EdgeInsets.all(12),
+                  itemBuilder: (_, i) {
+                    final p = _profiles[i];
+                    return ListTile(
+                      tileColor: const Color(0xFF141414),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      title: Text(
+                        p['id'] ?? '',
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                      ),
+                      subtitle: Text(
+                        'role: ${p['role'] ?? 'user'} · investidor: ${p['investor_profile'] ?? '-'}',
+                        style: const TextStyle(color: Colors.white70, fontSize: 11),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.white),
+                        onPressed: () => _openEditDialog(p),
                       ),
                     );
                   },
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemCount: _profiles.length,
                 ),
     );
   }

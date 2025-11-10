@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/admin_profiles_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -70,8 +71,8 @@ class _FinSightAppState extends State<FinSightApp> {
     final isDark = _themeMode == ThemeMode.dark;
 
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'FinSight',
+      debugShowCheckedModeBanner: false,
       theme: _lightTheme,
       darkTheme: _darkTheme,
       themeMode: _themeMode,
@@ -86,6 +87,8 @@ class _FinSightAppState extends State<FinSightApp> {
               onToggleTheme: _toggleTheme,
               isDark: isDark,
             ),
+
+        '/admin-profiles': (context) => const AdminProfilesScreen(),
       },
     );
   }

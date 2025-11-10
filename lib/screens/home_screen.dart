@@ -29,7 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   String? _error;
 
-  // filtro por fonte (menu ...)
+  // filtro por fonte (menu ... )
   String _filtroFonte = 'Todas';
 
   // perfil da Fin
@@ -40,11 +40,19 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _categoriaSelecionada;
   List<String> _categorias = [];
 
-  // cores do tema (pra não ficar espalhado)
-  final Color _bg = const Color(0xFF0D0D0D);
-  final Color _card = const Color(0xFF141414);
+  // paleta base (dark)
+  final Color _bgDark = const Color(0xFF0D0D0D);
+  final Color _cardDark = const Color(0xFF141414);
   final Color _neon = const Color(0xFF00FFA3);
   final Color _cyan = const Color(0xFF00BFFF);
+
+  Color get _background =>
+      widget.isDark ? _bgDark : const Color(0xFFF5F6F7);
+  Color get _cardColor => widget.isDark ? _cardDark : Colors.white;
+  Color get _textPrimary =>
+      widget.isDark ? Colors.white : const Color(0xFF0D0D0D);
+  Color get _textSecondary =>
+      widget.isDark ? Colors.white70 : const Color(0xFF4D4D4D);
 
   @override
   void initState() {
@@ -234,9 +242,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: _background,
       appBar: AppBar(
-        backgroundColor: _bg,
+        backgroundColor: _background,
         elevation: 0,
         titleSpacing: 0,
         title: Row(
@@ -259,17 +267,17 @@ class _HomeScreenState extends State<HomeScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'FinSight',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: _textPrimary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
                   'notícias inteligentes',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(.5),
+                    color: _textPrimary.withOpacity(.5),
                     fontSize: 11,
                   ),
                 ),
@@ -278,24 +286,24 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
-          // 👇 novo: botão de tema
+          // tema
           IconButton(
             onPressed: widget.onToggleTheme,
             icon: Icon(
               widget.isDark
                   ? Icons.wb_sunny_outlined
                   : Icons.dark_mode_outlined,
-              color: Colors.white,
+              color: _textPrimary,
             ),
             tooltip: widget.isDark ? 'Modo claro' : 'Modo escuro',
           ),
           IconButton(
             onPressed: _carregarTudo,
-            icon: const Icon(Icons.refresh, color: Colors.white),
+            icon: Icon(Icons.refresh, color: _textPrimary),
             tooltip: 'Atualizar',
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list, color: Colors.white),
+            icon: Icon(Icons.filter_list, color: _textPrimary),
             onSelected: _filtrarPorFonte,
             itemBuilder: (context) => _obterFontesUnicas().map((fonte) {
               return PopupMenuItem<String>(
@@ -313,7 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             onPressed: _logout,
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: Icon(Icons.logout, color: _textPrimary),
             tooltip: 'Sair',
           ),
           const SizedBox(width: 6),
@@ -331,8 +339,10 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             CircularProgressIndicator(color: _neon),
             const SizedBox(height: 16),
-            const Text('Carregando notícias...',
-                style: TextStyle(color: Colors.white)),
+            Text(
+              'Carregando notícias...',
+              style: TextStyle(color: _textPrimary),
+            ),
           ],
         ),
       );
@@ -345,15 +355,15 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Erro ao carregar notícias',
-              style: TextStyle(color: Colors.white, fontSize: 18),
+              style: TextStyle(color: _textPrimary, fontSize: 18),
             ),
             const SizedBox(height: 8),
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.grey),
+              style: TextStyle(color: _textSecondary),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
@@ -369,7 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return RefreshIndicator(
       onRefresh: _carregarTudo,
       color: _neon,
-      backgroundColor: _bg,
+      backgroundColor: _background,
       child: ListView(
         padding: const EdgeInsets.all(14),
         children: [
@@ -377,16 +387,15 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 12),
           _buildChipsCategorias(),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Destaques pra você',
             style: TextStyle(
-              color: Colors.white,
+              color: _textPrimary,
               fontWeight: FontWeight.w600,
               fontSize: 14,
             ),
           ),
           const SizedBox(height: 8),
-          // notícias
           ..._noticias.map(_buildNoticiaCard).toList(),
           const SizedBox(height: 30),
         ],
@@ -406,7 +415,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: _card,
+        color: _cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _cyan.withOpacity(.25)),
       ),
@@ -414,29 +423,28 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.bolt, color: Colors.amber, size: 26),
+          Icon(Icons.bolt, color: widget.isDark ? Colors.amber : Colors.amber[700], size: 26),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Fin te conhece assim 👇',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: _textPrimary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Perfil: $tipo',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  style: TextStyle(color: _textSecondary, fontSize: 12),
                 ),
                 if (interessesStr.isNotEmpty)
                   Text(
                     'Interesses: $interessesStr',
-                    style:
-                        const TextStyle(color: Colors.white38, fontSize: 11.5),
+                    style: TextStyle(color: _textSecondary, fontSize: 11.5),
                   ),
               ],
             ),
@@ -451,22 +459,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             },
-            icon: const Icon(Icons.edit, color: Colors.white70, size: 18),
+            icon: Icon(Icons.edit, color: _textSecondary, size: 18),
           ),
           if (_isAdmin)
             TextButton(
               onPressed: () {
-                // aqui você já tem a tela de admin, era só chamar quando quiser
-                // Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminProfilesScreen()));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Abrir tela de admin aqui (já temos base)'),
-                  ),
-                );
+                Navigator.pushNamed(context, '/admin-profiles');
               },
               style: TextButton.styleFrom(
                 backgroundColor: _cyan.withOpacity(.12),
-                foregroundColor: Colors.white,
+                foregroundColor: _textPrimary,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               ),
@@ -495,15 +497,13 @@ class _HomeScreenState extends State<HomeScreen> {
           final cat = _categorias[index];
           final bool ativo = cat == _categoriaSelecionada;
           return GestureDetector(
-            onTap: () => _filtrarPorCategoria(
-              ativo ? null : cat,
-            ),
+            onTap: () => _filtrarPorCategoria(ativo ? null : cat),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
                 color: ativo ? _neon : Colors.transparent,
                 border: Border.all(
-                  color: ativo ? Colors.transparent : Colors.white24,
+                  color: ativo ? Colors.transparent : _textPrimary.withOpacity(.25),
                 ),
                 borderRadius: BorderRadius.circular(999),
               ),
@@ -511,7 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Text(
                 cat,
                 style: TextStyle(
-                  color: ativo ? Colors.black : Colors.white,
+                  color: ativo ? Colors.black : _textPrimary,
                   fontWeight: FontWeight.w500,
                   fontSize: 12.5,
                 ),
@@ -527,7 +527,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: _card,
+        color: _cardColor,
         borderRadius: BorderRadius.circular(10),
       ),
       child: InkWell(
@@ -538,7 +538,6 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // topo
               Row(
                 children: [
                   Container(
@@ -561,16 +560,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (noticia.dataFormatada.isNotEmpty)
                     Text(
                       noticia.dataFormatada,
-                      style:
-                          const TextStyle(color: Colors.white30, fontSize: 11),
+                      style: TextStyle(
+                        color: _textSecondary.withOpacity(.5),
+                        fontSize: 11,
+                      ),
                     ),
                 ],
               ),
               const SizedBox(height: 10),
               Text(
                 noticia.titulo,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: _textPrimary,
                   fontSize: 14.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -579,8 +580,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 6),
                 Text(
                   noticia.resumo!,
-                  style: const TextStyle(
-                    color: Colors.white38,
+                  style: TextStyle(
+                    color: _textSecondary,
                     fontSize: 12,
                   ),
                   maxLines: 3,
