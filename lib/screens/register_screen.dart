@@ -33,21 +33,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      await Supabase.instance.client.auth.signUp(
+      // 1) cria a conta no Supabase Auth
+      final authResponse = await Supabase.instance.client.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
+      final user = authResponse.user;
+
+      // 2) tenta criar o perfil na tabela "profiles"
+      if (user != null) {
+        try {
+          await Supabase.instance.client.from('profiles').insert({
+            'id': user.id,
+            'role': 'user',
+            'investor_profile': null,
+            'investor_profile_json': null,
+          });
+        } catch (e) {
+          // se der erro de RLS, a gente ignora e segue
+          // (depois você ajusta a policy no Supabase)
+        }
+      }
+
+      // 3) avisa o usuário que precisa confirmar o e-mail
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Conta criada com sucesso! Verifique seu email para confirmar a conta.',
+              'Cadastro realizado! ✉️ Confirme seu e-mail antes de fazer login.',
+              style: TextStyle(color: Colors.white),
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: Colors.deepPurple,
             duration: Duration(seconds: 5),
           ),
         );
+
+        // volta pra tela de login
         Navigator.pushReplacementNamed(context, '/');
       }
     } on AuthException catch (error) {
@@ -55,13 +77,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         String errorMessage = 'Erro no registro: ';
         switch (error.message) {
           case 'User already registered':
-            errorMessage += 'Este email já está cadastrado.';
+            errorMessage += 'Este e-mail já está cadastrado.';
             break;
           case 'Password should be at least 6 characters':
             errorMessage += 'A senha deve ter pelo menos 6 caracteres.';
             break;
           case 'Invalid email':
-            errorMessage += 'Email inválido.';
+            errorMessage += 'E-mail inválido.';
             break;
           default:
             errorMessage += error.message;
@@ -121,6 +143,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
+
+              // EMAIL
               TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -132,17 +156,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Por favor, insira seu email';
+                    return 'Por favor, insira seu e-mail';
                   }
                   if (!RegExp(
                     r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                   ).hasMatch(value)) {
-                    return 'Por favor, insira um email válido';
+                    return 'Por favor, insira um e-mail válido';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 16),
+
+              // SENHA
               TextFormField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
@@ -175,6 +201,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 },
               ),
               const SizedBox(height: 16),
+
+              // CONFIRMAR SENHA
               TextFormField(
                 controller: _confirmPasswordController,
                 obscureText: _obscureConfirmPassword,
@@ -207,6 +235,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 },
               ),
               const SizedBox(height: 32),
+
+              // BOTÃO
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -225,6 +255,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // LINK LOGIN
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
