@@ -9,7 +9,7 @@ class GeminiService {
       throw Exception('GEMINI_API_KEY não encontrada no .env');
     }
 
-    // junta todas as perguntas e respostas
+    // Junta todas as perguntas e respostas da conversa
     final buffer = StringBuffer();
     for (final msg in chatHistory) {
       buffer.writeln("${msg['role']}: ${msg['content']}");
@@ -31,7 +31,7 @@ $buffer
 """;
 
     final url = Uri.parse(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey",
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=$apiKey",
     );
 
     final body = jsonEncode({
@@ -55,11 +55,21 @@ $buffer
     }
 
     final data = jsonDecode(response.body);
+
+    // Segurança extra: verifica se há candidato e texto válido
+    if (data["candidates"] == null || data["candidates"].isEmpty) {
+      throw Exception('Nenhum resultado retornado pelo Gemini.');
+    }
+
     final content = data["candidates"][0]["content"]["parts"][0]["text"];
 
-    // pode vir texto extra, tenta achar só o JSON
+    // 🔹 Extrai apenas o JSON do texto retornado
     final start = content.indexOf('{');
     final end = content.lastIndexOf('}');
+    if (start == -1 || end == -1) {
+      throw Exception('Resposta inesperada do Gemini: $content');
+    }
+
     final jsonText = content.substring(start, end + 1);
 
     return jsonDecode(jsonText);
